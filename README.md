@@ -1,2 +1,223 @@
-# mAahar---Smart-Mid-Day-Meal-Portal
-Interactive Mid-Day Meal Portal. Role-based dashboards for Teachers, Parents, Admins. Real-time meal stats, charts, India map with drill-down, animated counters, and report simulation. Built with HTML, CSS, JS, Chart.js &amp; TailwindCSS.
+#mAahar---Smart-Mid-Day-Meal-Portal
+#Interactive Mid-Day Meal Portal. Role-based dashboards for Teachers, Parents, Admins. Real-time meal stats, charts, India map with drill-down, animated counters, and report simulation. Built with HTML, CSS, JS, Chart.js &amp; TailwindCSS.
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>mAahar — Smart Mid-Day Meal Portal</title>
+
+<!-- Tailwind CSS -->
+<script src="https://cdn.tailwindcss.com"></script>
+
+<!-- Font Awesome -->
+<script src="https://kit.fontawesome.com/9d8f2d5d6a.js" crossorigin="anonymous"></script>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+<!-- Tippy.js for tooltips -->
+<script src="https://unpkg.com/@popperjs/core@2"></script>
+<script src="https://unpkg.com/tippy.js@6"></script>
+<link rel="stylesheet" href="https://unpkg.com/tippy.js@6/dist/tippy.css" />
+
+<style>
+/* Loading Spinner */
+@keyframes spinner {0%{transform:rotate(0deg);}100%{transform:rotate(360deg);}}
+.spinner {border: 4px solid rgba(0,0,0,0.1);border-left-color:#0b3d91;border-radius:50%;width:36px;height:36px;animation:spinner 1s linear infinite;}
+/* Counters Animation */
+.counter {transition: all 1s ease;}
+</style>
+</head>
+<body class="bg-gray-100 font-sans">
+
+<!-- Login Page -->
+<div id="loginPage" class="flex justify-center items-center h-screen bg-gradient-to-br from-blue-900 to-orange-400">
+  <div class="bg-white p-8 rounded-xl shadow-lg w-full max-w-md">
+    <h2 class="text-2xl font-bold text-blue-900 mb-4">Login to mAahar</h2>
+    <div class="flex gap-2 mb-4">
+      <button class="roleBtn px-4 py-2 bg-blue-600 text-white rounded" data-role="Teacher">Teacher</button>
+      <button class="roleBtn px-4 py-2 bg-green-600 text-white rounded" data-role="Parent">Parent</button>
+      <button class="roleBtn px-4 py-2 bg-orange-500 text-white rounded" data-role="Admin">Admin</button>
+    </div>
+    <input id="username" type="text" placeholder="Username" class="border p-2 rounded w-full mb-2">
+    <input id="password" type="password" placeholder="Password" class="border p-2 rounded w-full mb-2">
+    <div id="errorMsg" class="text-red-500 mb-2 hidden">Invalid credentials</div>
+    <button id="loginBtn" class="w-full bg-blue-900 text-white p-2 rounded">Login</button>
+    <div id="spinner" class="mx-auto mt-4 spinner hidden"></div>
+  </div>
+</div>
+
+<!-- Dashboard -->
+<div id="dashboard" class="hidden p-4">
+  <header class="flex justify-between items-center mb-4">
+    <h1 class="text-2xl font-bold text-blue-900">mAahar Dashboard</h1>
+    <button id="logoutBtn" class="px-4 py-2 bg-red-600 text-white rounded">Logout</button>
+  </header>
+
+  <!-- Animated Counters -->
+  <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-gray-500">Meals Served Today</h2>
+      <p id="mealsServed" class="text-2xl font-bold counter">0</p>
+    </div>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-gray-500">Schools Covered</h2>
+      <p id="schoolsCovered" class="text-2xl font-bold counter">0</p>
+    </div>
+    <div class="bg-white p-4 rounded shadow">
+      <h2 class="text-gray-500">Students Fed</h2>
+      <p id="studentsFed" class="text-2xl font-bold counter">0</p>
+    </div>
+  </div>
+
+  <!-- Charts & Map -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="bg-white p-4 rounded shadow">
+      <h3 class="font-bold mb-2">Meals by Region (Last 7 Days)</h3>
+      <canvas id="mealsChart"></canvas>
+    </div>
+    <div class="bg-white p-4 rounded shadow">
+      <h3 class="font-bold mb-2">Interactive India Map</h3>
+      <div id="indiaMap" class="w-full h-96"></div>
+    </div>
+  </div>
+
+  <!-- Additional Charts -->
+  <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-4">
+    <div class="bg-white p-4 rounded shadow">
+      <h3 class="font-bold mb-2">Meal Types Distribution</h3>
+      <canvas id="mealTypeChart"></canvas>
+    </div>
+    <div class="bg-white p-4 rounded shadow">
+      <h3 class="font-bold mb-2">Age Group Distribution</h3>
+      <canvas id="ageGroupChart"></canvas>
+    </div>
+  </div>
+
+  <!-- Download Reports -->
+  <div class="mb-4">
+    <button class="px-4 py-2 bg-green-600 text-white rounded mr-2" onclick="downloadCSV()">Download CSV</button>
+    <button class="px-4 py-2 bg-blue-600 text-white rounded" onclick="downloadPDF()">Download PDF</button>
+  </div>
+</div>
+
+<script>
+// Simulated users
+const users = {
+  teacher1: {password:'1234', role:'Teacher'},
+  parent1: {password:'1234', role:'Parent'},
+  admin1: {password:'1234', role:'Admin'}
+};
+let currentRole = 'Teacher';
+
+// Role selection
+document.querySelectorAll('.roleBtn').forEach(btn=>{
+  btn.addEventListener('click',()=>{
+    currentRole=btn.dataset.role;
+    document.querySelectorAll('.roleBtn').forEach(b=>b.classList.remove('ring-4','ring-blue-500'));
+    btn.classList.add('ring-4','ring-blue-500');
+  });
+});
+
+// Login
+document.getElementById('loginBtn').addEventListener('click',()=>{
+  const username = document.getElementById('username').value;
+  const password = document.getElementById('password').value;
+  const user = users[username];
+  if(user && user.password===password && user.role===currentRole){
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    loadDashboardData(currentRole);
+  } else {
+    document.getElementById('errorMsg').classList.remove('hidden');
+  }
+});
+
+// Logout
+document.getElementById('logoutBtn').addEventListener('click',()=>{
+  document.getElementById('loginPage').classList.remove('hidden');
+  document.getElementById('dashboard').classList.add('hidden');
+});
+
+// Demo Data
+const demoData = {
+  Teacher:{meals:12456, schools:312, students:11980, chart:[1200,1300,1400,1350,1450,1500,1600], mealTypes:[40,35,25], ageGroups:[20,40,40]},
+  Parent:{meals:1, schools:1, students:1, chart:[1,1,1,1,1,1,1], mealTypes:[100], ageGroups:[100]},
+  Admin:{meals:50000, schools:1500, students:48000, chart:[5000,5200,5400,5300,5500,5600,5700], mealTypes:[50,30,20], ageGroups:[30,30,40]}
+};
+
+// Dashboard
+function loadDashboardData(role){
+  animateCounter('mealsServed', demoData[role].meals);
+  animateCounter('schoolsCovered', demoData[role].schools);
+  animateCounter('studentsFed', demoData[role].students);
+
+  // Bar chart
+  const ctx = document.getElementById('mealsChart').getContext('2d');
+  new Chart(ctx,{
+    type:'bar',
+    data:{labels:['Mon','Tue','Wed','Thu','Fri','Sat','Sun'], datasets:[{label:'Meals', data:demoData[role].chart, backgroundColor:'#0b3d91'}]},
+    options:{responsive:true, plugins:{legend:{display:false}}}
+  });
+
+  // Pie charts
+  const ctx1 = document.getElementById('mealTypeChart').getContext('2d');
+  new Chart(ctx1,{type:'pie',data:{labels:['Veg','Non-Veg','Snack'],datasets:[{data:demoData[role].mealTypes,backgroundColor:['#0b3d91','#ff9933','#16a34a']}]}});
+
+  const ctx2 = document.getElementById('ageGroupChart').getContext('2d');
+  new Chart(ctx2,{type:'pie',data:{labels:['<5 yrs','6-10 yrs','11-14 yrs'],datasets:[{data:demoData[role].ageGroups,backgroundColor:['#0b3d91','#ff9933','#16a34a']}]}});
+
+  // Render India Map
+  renderIndiaMap();
+}
+
+// Counter Animation
+function animateCounter(id, value){
+  const el=document.getElementById(id);
+  let current=0;
+  const step=Math.ceil(value/50);
+  const interval=setInterval(()=>{current+=step; if(current>=value){current=value; clearInterval(interval);} el.innerText=current;},20);
+}
+
+// Simplified India map with states clickable
+function renderIndiaMap(){
+  const mapDiv=document.getElementById('indiaMap');
+  mapDiv.innerHTML='';
+  const svgNS="http://www.w3.org/2000/svg";
+  const svg=document.createElementNS(svgNS,'svg');
+  svg.setAttribute('viewBox','0 0 1000 1000');
+  svg.style.width='100%'; svg.style.height='100%';
+
+  const states=[
+    {name:'Maharashtra',x:400,y:600,value:1500,color:'#ff9933'},
+    {name:'Karnataka',x:450,y:700,value:1300,color:'#16a34a'},
+    {name:'Bihar',x:700,y:300,value:1200,color:'#0b3d91'},
+    {name:'West Bengal',x:900,y:400,value:1100,color:'#ff9933'}
+    // Add all other states/UTs here with positions
+  ];
+
+  states.forEach(st=>{
+    const circle=document.createElementNS(svgNS,'circle');
+    circle.setAttribute('cx',st.x); circle.setAttribute('cy',st.y);
+    circle.setAttribute('r',30); circle.setAttribute('fill',st.color);
+    circle.style.cursor='pointer';
+    circle.addEventListener('click',()=>{alert(`${st.name} Meals Served: ${st.value}`);});
+    svg.appendChild(circle);
+    tippy(circle,{content:`${st.name}: ${st.value} meals`,placement:'top'});
+  });
+  mapDiv.appendChild(svg);
+}
+
+// Simulated CSV/ PDF Download
+function downloadCSV(){
+  const csvContent="data:text/csv;charset=utf-8,State,Meals\nMaharashtra,1500\nKarnataka,1300\nBihar,1200\nWest Bengal,1100";
+  const encodedUri=encodeURI(csvContent);
+  const link=document.createElement('a'); link.setAttribute('href',encodedUri); link.setAttribute('download','meals_report.csv'); document.body.appendChild(link); link.click(); document.body.removeChild(link);
+}
+function downloadPDF(){
+  alert("PDF download simulated. Implement server-side PDF generation for real export.");
+}
+</script>
+</body>
+</html>
